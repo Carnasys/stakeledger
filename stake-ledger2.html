@@ -1,0 +1,571 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>STAKE // LEDGER</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+:root{
+  --bg: #08080a;
+  --panel: #0f0f12;
+  --panel-2: #141417;
+  --line: #262629;
+  --line-soft: #1b1b1e;
+  --text: #ededee;
+  --muted: #6d6d74;
+  --faint: #47474c;
+}
+
+*{ box-sizing: border-box; margin:0; padding:0; }
+
+body{
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Space Grotesk', sans-serif;
+  min-height: 100vh;
+  padding: 28px 20px 80px;
+  position: relative;
+  overflow-x: hidden;
+}
+
+body::before{
+  content:'';
+  position: fixed; inset: 0; pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black, transparent 75%);
+  z-index: 0;
+}
+
+.scanline{
+  position: fixed; left:0; right:0; height: 120px; top:-120px;
+  background: linear-gradient(to bottom, transparent, rgba(255,255,255,.035), transparent);
+  animation: sweep 9s linear infinite;
+  pointer-events:none; z-index:0;
+}
+@keyframes sweep{ 0%{ top:-120px; } 100%{ top:110%; } }
+
+@media (prefers-reduced-motion: reduce){
+  .scanline{ animation: none; display:none; }
+  *{ transition: none !important; animation-duration: .001s !important; }
+}
+
+.wrap{ max-width: 1040px; margin: 0 auto; position: relative; z-index: 1; }
+
+/* ---- HUD header ---- */
+.hud{
+  display:grid; grid-template-columns: 1fr auto 1fr; align-items: start; gap: 16px;
+  border-bottom: 1px solid var(--line); padding-bottom: 20px; margin-bottom: 24px;
+}
+@media (max-width: 720px){ .hud{ grid-template-columns: 1fr; text-align:center; } }
+
+.corner-label{
+  font-family:'JetBrains Mono', monospace; font-size: 10px; letter-spacing:.2em;
+  color: var(--muted); text-transform: uppercase; margin-bottom: 6px;
+}
+.corner-val{ font-family:'JetBrains Mono', monospace; font-size: 24px; font-weight: 700; margin-bottom: 10px; }
+.corner-val.muted-val{ color: var(--muted); font-weight: 600; }
+
+.mini-form{ display:flex; gap: 6px; }
+.mini-form input{
+  width: 110px; background: var(--panel-2); border: 1px solid var(--line); color: var(--text);
+  font-family:'JetBrains Mono', monospace; font-size: 12px; padding: 7px 8px; border-radius: 2px;
+}
+.mini-form button{
+  font-family:'JetBrains Mono', monospace; font-size: 10px; letter-spacing:.08em;
+  background: transparent; border: 1px solid var(--line); color: var(--text);
+  padding: 7px 10px; cursor:pointer; text-transform: uppercase; border-radius: 2px; white-space:nowrap;
+}
+.mini-form button:hover{ border-color: var(--text); }
+
+.right-block{ display:flex; flex-direction:column; align-items:flex-end; }
+@media (max-width: 720px){ .right-block{ align-items:center; } }
+
+.title-block{ text-align:center; padding-top: 4px; }
+.eyebrow{
+  font-family:'JetBrains Mono', monospace; font-size: 11px; letter-spacing: .25em;
+  color: var(--muted); text-transform: uppercase; margin-bottom: 6px;
+}
+h1{ font-size: 26px; font-weight: 700; letter-spacing: -.02em; }
+h1 span{ color: var(--muted); font-weight: 400; }
+
+.reset-btn{
+  font-family:'JetBrains Mono', monospace; font-size: 10px; letter-spacing:.1em;
+  background: transparent; border: 1px solid var(--line); color: var(--muted);
+  padding: 7px 12px; cursor: pointer; text-transform: uppercase; border-radius: 2px;
+  margin-top: 10px;
+}
+.reset-btn:hover{ border-color: var(--muted); color: var(--text); }
+button:focus-visible, input:focus-visible, select:focus-visible{
+  outline: 1px solid var(--text); outline-offset: 2px;
+}
+
+/* ---- dashboard ---- */
+.dash{
+  display:grid; grid-template-columns: 190px 1fr; gap: 28px;
+  padding: 26px; border: 1px solid var(--line); background: var(--panel);
+  margin-bottom: 24px; border-radius: 2px;
+}
+@media (max-width: 640px){ .dash{ grid-template-columns: 1fr; justify-items:center; text-align:center; } }
+
+.gauge-wrap{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap: 10px; }
+.gauge-label{ font-family:'JetBrains Mono', monospace; font-size:10px; letter-spacing:.2em; color: var(--muted); text-transform:uppercase; }
+.gauge-val{ font-family:'JetBrains Mono', monospace; font-size: 28px; font-weight: 700; }
+.gauge-sub{ font-family:'JetBrains Mono', monospace; font-size: 10px; color: var(--faint); }
+
+.stats{ display:grid; grid-template-columns: 1fr 1fr; gap: 20px 32px; align-content:center; }
+@media (max-width: 480px){ .stats{ grid-template-columns: 1fr; } }
+.stat-label{
+  font-family:'JetBrains Mono', monospace; font-size: 10px; letter-spacing:.2em;
+  color: var(--muted); text-transform: uppercase; margin-bottom: 6px;
+}
+.stat-val{ font-family:'JetBrains Mono', monospace; font-size: 20px; font-weight: 600; }
+.stat-val.dim{ color: var(--muted); }
+.stat-val.up::before{ content:'▲ '; font-size: 11px; }
+.stat-val.down{ color: var(--muted); }
+.stat-val.down::before{ content:'▼ '; font-size: 11px; }
+.stat-range{ font-family:'JetBrains Mono', monospace; font-size: 15px; font-weight: 600; }
+.stat-range .lo{ color: var(--muted); }
+.stat-range .hi{ color: var(--text); }
+
+/* ---- form ---- */
+.section-title{
+  font-family:'JetBrains Mono', monospace; font-size: 11px; letter-spacing:.25em;
+  color: var(--muted); text-transform: uppercase; margin: 32px 0 12px;
+  display:flex; align-items:center; gap: 10px;
+}
+.section-title::after{ content:''; flex:1; height:1px; background: var(--line); }
+
+.entry-form{
+  display:grid; grid-template-columns: 2fr 1fr 1fr 1fr auto; gap: 10px;
+  padding: 18px; border: 1px solid var(--line); background: var(--panel); border-radius: 2px;
+}
+@media (max-width: 720px){ .entry-form{ grid-template-columns: 1fr 1fr; } }
+
+.entry-form label{
+  font-family:'JetBrains Mono', monospace; font-size: 9px; letter-spacing:.15em;
+  color: var(--muted); text-transform: uppercase; display:block; margin-bottom: 5px;
+}
+.entry-form input, .entry-form select{
+  width:100%; background: var(--panel-2); border: 1px solid var(--line); color: var(--text);
+  font-family:'JetBrains Mono', monospace; font-size: 13px; padding: 9px 8px; border-radius: 2px;
+}
+.entry-form select{ cursor:pointer; }
+.add-btn{
+  align-self: end;
+  background: var(--text); color: var(--bg); border:none;
+  font-family:'JetBrains Mono', monospace; font-size: 11px; letter-spacing:.1em;
+  padding: 10px 18px; cursor:pointer; text-transform:uppercase; border-radius: 2px; white-space: nowrap;
+}
+.add-btn:hover{ opacity:.85; }
+
+/* ---- table ---- */
+.table-wrap{ overflow-x:auto; border: 1px solid var(--line); border-radius: 2px; }
+table{ width:100%; border-collapse: collapse; font-family:'JetBrains Mono', monospace; font-size: 13px; min-width: 620px; }
+thead th{
+  text-align:left; font-size: 10px; letter-spacing:.15em; color: var(--muted); text-transform:uppercase;
+  padding: 12px 14px; border-bottom: 1px solid var(--line); background: var(--panel-2); font-weight: 500;
+}
+tbody td{ padding: 12px 14px; border-bottom: 1px solid var(--line-soft); color: var(--text); }
+tbody tr:hover{ background: rgba(255,255,255,.02); }
+tbody tr:last-child td{ border-bottom:none; }
+.num{ text-align:right; font-variant-numeric: tabular-nums; }
+.result-select{
+  background: var(--panel-2); border: 1px solid var(--line); color: var(--text);
+  font-family:'JetBrains Mono', monospace; font-size: 11px; padding: 5px 6px; border-radius: 2px; cursor:pointer;
+}
+.win-cell.up{ color: var(--text); font-weight: 600; }
+.win-cell.down{ color: var(--muted); font-weight: 600; }
+.win-cell.pending{ color: var(--faint); }
+.del-btn{
+  background: transparent; border: 1px solid var(--line); color: var(--muted);
+  width: 26px; height: 26px; cursor:pointer; border-radius: 2px; font-size: 13px; line-height: 1;
+}
+.del-btn:hover{ color: var(--text); border-color: var(--muted); }
+.empty-row td{ text-align:center; color: var(--muted); padding: 28px 14px; }
+.tag{
+  font-family:'JetBrains Mono', monospace; font-size: 10px; letter-spacing:.1em;
+  border: 1px solid var(--line); padding: 3px 7px; border-radius: 2px; color: var(--muted); text-transform:uppercase;
+}
+.tag.deposit{ color: var(--text); border-color: var(--faint); }
+
+.footnote{
+  font-family:'JetBrains Mono', monospace; font-size: 10px; color: var(--muted);
+  margin-top: 14px; letter-spacing: .05em; line-height: 1.6;
+}
+</style>
+</head>
+<body>
+<div class="scanline"></div>
+<div class="wrap">
+
+  <div class="hud">
+    <div>
+      <div class="corner-label">Deposited</div>
+      <div class="corner-val" id="depositedVal">Rp 0</div>
+      <div class="mini-form">
+        <input type="number" id="depositAmount" placeholder="Amount" min="0" step="1">
+        <button id="depositBtn">+ Deposit</button>
+      </div>
+    </div>
+
+    <div class="title-block">
+      <div class="eyebrow">Personal wager log</div>
+      <h1>STAKE <span>//</span> LEDGER</h1>
+    </div>
+
+    <div class="right-block">
+      <div class="corner-label">Withdrawn</div>
+      <div class="corner-val muted-val" id="withdrawnVal">Rp 0</div>
+      <div class="mini-form">
+        <input type="number" id="withdrawAmount" placeholder="Amount" min="0" step="1">
+        <button id="withdrawBtn">+ Withdraw</button>
+      </div>
+      <button class="reset-btn" id="resetBtn">Reset data</button>
+    </div>
+  </div>
+
+  <div class="dash">
+    <div class="gauge-wrap">
+      <svg width="150" height="150" viewBox="0 0 150 150">
+        <circle cx="75" cy="75" r="62" fill="none" stroke="#1b1b1e" stroke-width="10"/>
+        <circle id="gaugeArc" cx="75" cy="75" r="62" fill="none" stroke="#ececee" stroke-width="10"
+                stroke-linecap="round" stroke-dasharray="389.6" stroke-dashoffset="389.6"
+                transform="rotate(-90 75 75)" style="transition: stroke-dashoffset .8s ease;"/>
+      </svg>
+      <div class="gauge-label">Win Rate</div>
+      <div class="gauge-val" id="gaugeVal">0.00%</div>
+      <div class="gauge-sub" id="gaugeSub">0W / 0L</div>
+    </div>
+
+    <div class="stats">
+      <div>
+        <div class="stat-label">Balance</div>
+        <div class="stat-val" id="balanceVal">Rp 0</div>
+      </div>
+      <div>
+        <div class="stat-label">Realized P/L</div>
+        <div class="stat-val" id="realizedVal">Rp 0</div>
+      </div>
+      <div>
+        <div class="stat-label">Unrealized P/L</div>
+        <div class="stat-range" id="unrealizedVal"><span class="lo">Rp 0</span> &nbsp;↔&nbsp; <span class="hi">Rp 0</span></div>
+      </div>
+      <div>
+        <div class="stat-label">Resolved / Pending</div>
+        <div class="stat-val dim" id="countVal">0 / 0</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-title">New entry</div>
+  <div class="entry-form">
+    <div>
+      <label for="matchInput">Match</label>
+      <input type="text" id="matchInput" placeholder="e.g. FIFA Norway vs Ivory Coast">
+    </div>
+    <div>
+      <label for="stakeInput">Stake (Rp)</label>
+      <input type="number" id="stakeInput" placeholder="50000" min="0" step="1">
+    </div>
+    <div>
+      <label for="oddsInput">Odds</label>
+      <input type="number" id="oddsInput" placeholder="2.154" min="0" step="0.001">
+    </div>
+    <div>
+      <label for="resultInput">Result</label>
+      <select id="resultInput">
+        <option value="Pending">Pending</option>
+        <option value="W">Win</option>
+        <option value="L">Loss</option>
+      </select>
+    </div>
+    <button class="add-btn" id="addBtn">+ Add</button>
+  </div>
+
+  <div class="section-title">Records</div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Match</th>
+          <th class="num">Stake</th>
+          <th class="num">Odds</th>
+          <th>Result</th>
+          <th class="num">P/L</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="tableBody">
+        <tr class="empty-row"><td colspan="6">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="footnote">Win → +Stake×(Odds−1). Loss → −Stake. Pending is excluded from Realized P/L and Win Rate until resolved.</div>
+
+  <div class="section-title">Cash flow</div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th class="num">Amount</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="cashBody">
+        <tr class="empty-row"><td colspan="3">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="footnote">Deposited and Withdrawn totals are cumulative — add a transaction to change them, they can't be edited directly.</div>
+
+</div>
+
+<script>
+const RECORDS_KEY = 'stake-ledger:records';
+const TX_KEY = 'stake-ledger:transactions';
+const OLD_DEPOSIT_KEY = 'stake-ledger:deposited';
+
+const seedRecords = [
+  { id: 'r1', match: 'FIFA Norway vs Ivory Coast', stake: 50000, odds: 2.154, result: 'W' },
+  { id: 'r2', match: 'FIFA France vs Sweden', stake: 50000, odds: 1.323, result: 'W' },
+  { id: 'r3', match: 'FIFA England vs DR Congo', stake: 50000, odds: 1.293, result: 'W' },
+  { id: 'r4', match: 'FIFA England vs DR Congo', stake: 50000, odds: 1.832, result: 'W' },
+  { id: 'r5', match: 'FIFA Argentina vs Cape Verde', stake: 100000, odds: 1.19, result: 'Pending' },
+  { id: 'r6', match: 'FIFA Spain vs Austria', stake: 100000, odds: 1.143, result: 'Pending' },
+  { id: 'r7', match: 'FIFA Portugal vs Croatia', stake: 50000, odds: 1.365, result: 'Pending' },
+  { id: 'r8', match: 'FIFA Paraguay vs France', stake: 100000, odds: 1.23, result: 'Pending' },
+];
+const seedTransactions = [ { id: 't1', type: 'deposit', amount: 250000 } ];
+
+let records = [];
+let transactions = [];
+
+const fmtRp = n => (n < 0 ? '-Rp ' : 'Rp ') + Math.round(Math.abs(n)).toLocaleString('en-US');
+const plOf = r => r.result === 'W' ? r.stake * (r.odds - 1) : (r.result === 'L' ? -r.stake : null);
+
+// Real, persistent browser storage (works on GitHub Pages / any host).
+// Falls back gracefully if localStorage is blocked (e.g. private browsing).
+function storageAvailable(){
+  try{
+    const t = '__test__';
+    localStorage.setItem(t, '1');
+    localStorage.removeItem(t);
+    return true;
+  }catch(e){ return false; }
+}
+const hasStorage = storageAvailable();
+
+function loadData(){
+  if(hasStorage){
+    const rec = localStorage.getItem(RECORDS_KEY);
+    if(rec !== null){
+      try{ records = JSON.parse(rec); }catch(e){ records = seedRecords; }
+    } else {
+      records = seedRecords;
+      localStorage.setItem(RECORDS_KEY, JSON.stringify(records));
+    }
+
+    const tx = localStorage.getItem(TX_KEY);
+    if(tx !== null){
+      try{ transactions = JSON.parse(tx); }catch(e){ transactions = seedTransactions; }
+    } else {
+      // migrate from the old single-deposit-value version if present
+      const old = localStorage.getItem(OLD_DEPOSIT_KEY);
+      if(old !== null){
+        const oldVal = parseFloat(old) || 0;
+        transactions = oldVal > 0 ? [{ id: 't1', type: 'deposit', amount: oldVal }] : [];
+      } else {
+        transactions = seedTransactions;
+      }
+      localStorage.setItem(TX_KEY, JSON.stringify(transactions));
+    }
+  } else {
+    // No persistence available in this browser context — still show the app.
+    records = seedRecords;
+    transactions = seedTransactions;
+    console.warn('localStorage unavailable — changes will not be saved.');
+  }
+  render();
+}
+
+function saveRecords(){
+  if(!hasStorage) return;
+  try{ localStorage.setItem(RECORDS_KEY, JSON.stringify(records)); }
+  catch(e){ console.error('Failed to save records', e); }
+}
+function saveTx(){
+  if(!hasStorage) return;
+  try{ localStorage.setItem(TX_KEY, JSON.stringify(transactions)); }
+  catch(e){ console.error('Failed to save transactions', e); }
+}
+
+function escapeHtml(s){
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function render(){
+  // ---- records table ----
+  const tbody = document.getElementById('tableBody');
+  tbody.innerHTML = '';
+  if(records.length === 0){
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="6">No entries yet — add your first bet above.</td></tr>';
+  } else {
+    records.forEach(r => {
+      const pl = plOf(r);
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${escapeHtml(r.match)}</td>
+        <td class="num">${fmtRp(r.stake)}</td>
+        <td class="num">${Number(r.odds).toFixed(3)}</td>
+        <td>
+          <select class="result-select" data-id="${r.id}">
+            <option value="Pending" ${r.result==='Pending'?'selected':''}>Pending</option>
+            <option value="W" ${r.result==='W'?'selected':''}>Win</option>
+            <option value="L" ${r.result==='L'?'selected':''}>Loss</option>
+          </select>
+        </td>
+        <td class="num win-cell ${pl===null ? 'pending' : (pl>0 ? 'up':'down')}">${pl===null ? '—' : fmtRp(pl)}</td>
+        <td><button class="del-btn" data-id="${r.id}" aria-label="Delete entry">×</button></td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+  document.querySelectorAll('.result-select').forEach(sel => {
+    sel.addEventListener('change', e => {
+      const rec = records.find(r => r.id === e.target.dataset.id);
+      if(rec){ rec.result = e.target.value; saveRecords(); render(); }
+    });
+  });
+  document.querySelectorAll('#tableBody .del-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      records = records.filter(r => r.id !== e.target.dataset.id);
+      saveRecords(); render();
+    });
+  });
+
+  // ---- cash flow table ----
+  const cashBody = document.getElementById('cashBody');
+  cashBody.innerHTML = '';
+  if(transactions.length === 0){
+    cashBody.innerHTML = '<tr class="empty-row"><td colspan="3">No deposits or withdrawals yet.</td></tr>';
+  } else {
+    transactions.forEach(t => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><span class="tag ${t.type==='deposit'?'deposit':''}">${t.type === 'deposit' ? 'Deposit' : 'Withdraw'}</span></td>
+        <td class="num">${fmtRp(t.amount)}</td>
+        <td><button class="del-btn" data-id="${t.id}" aria-label="Delete transaction">×</button></td>
+      `;
+      cashBody.appendChild(tr);
+    });
+  }
+  document.querySelectorAll('#cashBody .del-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      transactions = transactions.filter(t => t.id !== e.target.dataset.id);
+      saveTx(); render();
+    });
+  });
+
+  // ---- derived numbers ----
+  const totalDeposited = transactions.filter(t=>t.type==='deposit').reduce((s,t)=>s+t.amount,0);
+  const totalWithdrawn = transactions.filter(t=>t.type==='withdraw').reduce((s,t)=>s+t.amount,0);
+
+  const resolved = records.filter(r => r.result !== 'Pending');
+  const wins = resolved.filter(r => r.result === 'W');
+  const losses = resolved.filter(r => r.result === 'L');
+  const pending = records.filter(r => r.result === 'Pending');
+
+  const realizedPL = resolved.reduce((s,r) => s + plOf(r), 0);
+  const pendingStakeSum = pending.reduce((s,r) => s + r.stake, 0);
+  const pendingUpside = pending.reduce((s,r) => s + r.stake * (r.odds - 1), 0);
+  const balance = totalDeposited - totalWithdrawn + realizedPL - pendingStakeSum;
+  const winRate = resolved.length > 0 ? (wins.length / resolved.length) * 100 : 0;
+
+  document.getElementById('depositedVal').textContent = fmtRp(totalDeposited);
+  document.getElementById('withdrawnVal').textContent = fmtRp(totalWithdrawn);
+
+  const balEl = document.getElementById('balanceVal');
+  balEl.textContent = fmtRp(balance);
+  balEl.className = 'stat-val ' + (balance >= 0 ? '' : 'down');
+
+  const realEl = document.getElementById('realizedVal');
+  realEl.textContent = fmtRp(realizedPL);
+  realEl.className = 'stat-val ' + (realizedPL >= 0 ? 'up' : 'down');
+
+  document.getElementById('unrealizedVal').innerHTML =
+    `<span class="lo">${fmtRp(-pendingStakeSum)}</span> &nbsp;↔&nbsp; <span class="hi">+${fmtRp(pendingUpside)}</span>`;
+
+  document.getElementById('countVal').textContent = `${resolved.length} / ${pending.length}`;
+
+  const gaugeVal = document.getElementById('gaugeVal');
+  gaugeVal.textContent = winRate.toFixed(2) + '%';
+  document.getElementById('gaugeSub').textContent = `${wins.length}W / ${losses.length}L`;
+
+  const arc = document.getElementById('gaugeArc');
+  const circumference = 389.6;
+  const pct = Math.max(0, Math.min(winRate, 100)) / 100;
+  arc.setAttribute('stroke-dashoffset', circumference - (circumference * pct));
+  arc.setAttribute('stroke', winRate >= 50 ? '#ececee' : '#5a5a60');
+}
+
+document.getElementById('addBtn').addEventListener('click', () => {
+  const match = document.getElementById('matchInput').value.trim();
+  const stake = parseFloat(document.getElementById('stakeInput').value);
+  const odds = parseFloat(document.getElementById('oddsInput').value);
+  const result = document.getElementById('resultInput').value;
+
+  if(!match || isNaN(stake) || stake <= 0 || isNaN(odds) || odds <= 0){
+    alert('Enter a match name, a stake above 0, and odds above 0.');
+    return;
+  }
+
+  records.push({ id: 'r' + Date.now(), match, stake, odds, result });
+  saveRecords();
+  render();
+
+  document.getElementById('matchInput').value = '';
+  document.getElementById('stakeInput').value = '';
+  document.getElementById('oddsInput').value = '';
+  document.getElementById('resultInput').value = 'Pending';
+  document.getElementById('matchInput').focus();
+});
+
+document.getElementById('depositBtn').addEventListener('click', () => {
+  const input = document.getElementById('depositAmount');
+  const val = parseFloat(input.value);
+  if(isNaN(val) || val <= 0){ alert('Enter a deposit amount above 0.'); return; }
+  transactions.push({ id: 't' + Date.now(), type: 'deposit', amount: val });
+  saveTx(); render();
+  input.value = '';
+});
+
+document.getElementById('withdrawBtn').addEventListener('click', () => {
+  const input = document.getElementById('withdrawAmount');
+  const val = parseFloat(input.value);
+  if(isNaN(val) || val <= 0){ alert('Enter a withdrawal amount above 0.'); return; }
+  transactions.push({ id: 't' + Date.now(), type: 'withdraw', amount: val });
+  saveTx(); render();
+  input.value = '';
+});
+
+document.getElementById('resetBtn').addEventListener('click', () => {
+  if(!confirm('Clear all records and cash flow history? This cannot be undone.')) return;
+  records = [];
+  transactions = [];
+  saveRecords();
+  saveTx();
+  render();
+});
+
+loadData();
+</script>
+</body>
+</html>
